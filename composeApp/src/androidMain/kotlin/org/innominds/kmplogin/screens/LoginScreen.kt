@@ -2,7 +2,8 @@ package org.innominds.kmplogin.screens
 
 import android.content.res.Configuration
 import android.content.res.Configuration.UI_MODE_NIGHT_NO
-import android.widget.Toast
+import android.util.Log
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,11 +20,13 @@ import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -31,13 +34,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import data.remote.models.ApiResponse
 import org.innominds.kmplogin.R
 import org.innominds.kmplogin.models.Credentials
+import org.innominds.kmplogin.viewmodels.LoginViewModel
 
 @Composable
 fun LoginScreen() {
@@ -54,22 +59,26 @@ fun LoginScreen() {
 
 @Composable
 fun Content() {
-    val credentials by remember { mutableStateOf(Credentials()) }
+    var credentials by remember { mutableStateOf(Credentials()) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
             .padding(10.dp),
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val viewModel: LoginViewModel = viewModel()
+        val isLogin = viewModel.isLoginSuccess.collectAsState().value
         TitleText()
         Spacer(modifier = Modifier.padding(10.dp))
-        UserNameField(onChange = { })
+        UserNameField(onChange = { data -> credentials = credentials.copy(login = data)  },  credentials.login)
         Spacer(modifier = Modifier.padding(5.dp))
-        PasswordField(onChange = { })
+        PasswordField(onChange = { data -> credentials = credentials.copy(pwd = data)  },  credentials.pwd)
         Spacer(modifier = Modifier.padding(10.dp))
-        LoginButton(credentials.login, credentials.pwd)
+        LoginButton(credentials.login, credentials.pwd, viewModel)
+
+        Log.e("LoginScreen", "LoginScreen :: ApiServiceClient Output Data == $isLogin")
     }
 }
 
@@ -87,12 +96,11 @@ fun TitleText() {
 }
 
 @Composable
-fun UserNameField( onChange: (String) -> Unit,) {
-    var userName by remember { mutableStateOf("") }
+fun UserNameField(onChange: (String) -> Unit, login: String,) {
     OutlinedTextField(
         modifier = Modifier.fillMaxWidth(),
         maxLines = 1,
-        value = userName,
+        value = login,
         keyboardOptions = KeyboardOptions(
             imeAction = ImeAction.Next,
             keyboardType = KeyboardType.Password
@@ -103,14 +111,13 @@ fun UserNameField( onChange: (String) -> Unit,) {
                 contentDescription = "User Name"
             )
         },
-        label = { Text(text = "Enter User Name") },
+        label = { Text(text = "Enter Username") },
         onValueChange = onChange,
     )
 }
 
 @Composable
-fun PasswordField(onChange: (String) -> Unit) {
-    val pasword by remember { mutableStateOf(TextFieldValue("")) }
+fun PasswordField(onChange: (String) -> Unit, pwd: String) {
 
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -124,7 +131,7 @@ fun PasswordField(onChange: (String) -> Unit) {
             )
         },
 
-        value = pasword.text,
+        value = pwd,
         label = { Text(text = "Enter Password") },
         onValueChange = onChange,
         keyboardOptions = KeyboardOptions(
@@ -147,17 +154,13 @@ fun PasswordField(onChange: (String) -> Unit) {
 }
 
 @Composable
-fun LoginButton(userName: String, password: String) {
+fun LoginButton(userName: String, password: String, viewModel: LoginViewModel) {
     val context = LocalContext.current
     println("User Name: $userName, Password: $password")
     Button(
         onClick = {
             println("User Name: $userName, Password: $password")
-          /*  Toast.makeText(
-                context,
-                "User Name: $userName, Password: $password",
-                Toast.LENGTH_SHORT
-            ).show()*/
+            viewModel.login(userName, password)
         },
         modifier = Modifier
             .fillMaxWidth(0.5f)
